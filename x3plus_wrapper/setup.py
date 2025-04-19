@@ -17,11 +17,11 @@ setup(
         (os.path.join('share', package_name,'rviz'),glob(os.path.join('rviz','*.rviz*'))),
         (os.path.join('share', package_name, 'param'), glob(os.path.join('param', '*.yaml'))),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'rclpy', 'std_msgs', 'geometry_msgs', 'sensor_msgs'],
     zip_safe=True,
     maintainer='marvin',
     maintainer_email='cord.burmeister@live.de',
-    description='Package mapping the driver functionality into the ROS2 world',
+    description='Package mapping the driver functionality into the ROS2 world. This package includes launch files, RViz configuration files, parameter files, and the main driver code for the robot.',
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
