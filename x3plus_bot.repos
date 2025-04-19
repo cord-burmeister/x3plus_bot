@@ -1,0 +1,5 @@
+repositories:
+  x3plus_bot:
+    type: git
+    url: https://github.com/cord-burmeister/x3plus_bot.git
+    version: main
