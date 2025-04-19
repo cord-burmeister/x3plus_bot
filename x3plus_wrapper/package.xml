@@ -3,11 +3,14 @@
 <package format="3">
   <name>x3plus_wrapper</name>
   <version>0.0.1</version>
-  <description>Package mapping the driver functionality into the ROS2 world</description>
+  <description>Package mapping the driver functionality into the ROS2 world. This package includes launch files, RViz configuration files, parameter files, and the main driver code for the robot.</description>
   <maintainer email="cord.burmeister@live.de">marvin</maintainer>
   <license>Apache-2.0</license>
 
   <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
