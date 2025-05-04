@@ -17,7 +17,7 @@ setup(
         (os.path.join('share', package_name,'rviz'),glob(os.path.join('rviz','*.rviz*'))),
         (os.path.join('share', package_name, 'param'), glob(os.path.join('param', '*.yaml'))),
     ],
-    install_requires=['setuptools', 'rclpy', 'std_msgs', 'geometry_msgs', 'sensor_msgs'],
+    install_requires=['setuptools', 'rclpy', 'std_msgs', 'geometry_msgs', 'sensor_msgs', 'nav_msgs', 'tf-transformations' ],
     zip_safe=True,
     maintainer='marvin',
     maintainer_email='cord.burmeister@live.de',

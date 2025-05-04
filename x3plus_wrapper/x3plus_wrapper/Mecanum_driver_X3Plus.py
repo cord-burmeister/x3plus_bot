@@ -323,15 +323,21 @@ class yahboomcar_driver(Node):
         roll = 0.0
         pitch = 0.0
         yaw = self.theta  # degrees in radians
+        quat = quaternion_from_euler(roll, pitch, yaw)
 
   		# Populate odometry message
         odom.header.stamp = time_stamp.to_msg()
-        odom.header.frame_id = "base_footprint"
+        odom.header.frame_id = "odom"
         odom.pose.pose.position.x = self.x
         odom.pose.pose.position.y = self.y
         odom.pose.pose.position.z = 0.0
-        odom.pose.pose.orientation = quaternion_from_euler(roll, pitch, yaw)
+        odom.pose.pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
 
+        #  set the velocity
+        odom.child_frame_id = "base_link";
+        odom.twist.twist.linear.x =  vx * 1.0
+        odom.twist.twist.linear.y = vy * 1.0
+        odom.twist.twist.angular.z = angular * 1.0
 
         # Publish data
         self.velPublisher.publish(twist)
