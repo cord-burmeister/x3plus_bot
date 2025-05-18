@@ -64,11 +64,10 @@ def evaluate_xacro(context, *args, **kwargs):
 def generate_launch_description():
 #region  Get the launch directories
     pkg_bringup = get_package_share_directory('x3plus_bringup')
-    launch_dir = os.path.join(pkg_bringup, 'launch')
     bringup_launch_dir = os.path.join(pkg_bringup, 'launch')
     pkg_nav2 = get_package_share_directory('x3plus_nav2')
-    pkg_bot_bringup = get_package_share_directory('x3plus_bot_bringup')
-    pkg_bsllidar_ros2 = get_package_share_directory('sllidar_ros2')
+    pkg_wrapper = get_package_share_directory('x3plus_wrapper')
+    pkg_sllidar_ros2 = get_package_share_directory('sllidar_ros2')
     
 #endregion 
 
@@ -174,13 +173,24 @@ def generate_launch_description():
 #endregion
 
 
-    rviz_cmd = IncludeLaunchDescription(
+    # Declare the launch arguments for the lidar sensor
+    lidar_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_dir, 'rviz_launch.py')),
-        condition=IfCondition(use_rviz),
-        launch_arguments={'namespace': namespace,
-                          'use_namespace': use_namespace,
-                          'rviz_config': rviz_config_file}.items())
+            os.path.join(pkg_sllidar_ros2, 'launch', 'sllidar_c1_launch.py')),
+        launch_arguments={'frame_id': 'laser_link'}.items())
+
+
+
+    # Declare the launch arguments for the wrapper node
+    wrapper_cmd= Node(
+        package='x3plus_wrapper',
+        executable='Mecanum_driver_X3Plus',
+    )
+    # # Declare the launch arguments for the wrapper node
+    # wrapper_cmd = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(pkg_wrapper, 'launch', 'drive_bringup_X3Plus_launch.py')),
+    #     launch_arguments={'frame_id': 'laser_link'}.items())
 
 
 
@@ -224,9 +234,7 @@ def generate_launch_description():
     ld.add_action(OpaqueFunction(function=evaluate_xacro))
 
     # Add the actions to launch all of the navigation nodes
-    ld.add_action(rviz_cmd)
-    ld.add_action(robot_localization_cmd)
+    ld.add_action(lidar_cmd)
+    ld.add_action(wrapper_cmd)
     ld.add_action(bringup_cmd)
-    
-
     return ld

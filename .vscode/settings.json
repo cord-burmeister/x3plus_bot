@@ -1,16 +1,26 @@
 {
     "cSpell.words": [
+        "bringup",
         "Buzzercallback",
         "dtheta",
         "Lightcallback",
         "loginfo",
         "Mecanum",
+        "MPPI",
         "rclpy",
+        "respawn",
         "Rosmaster",
         "rotvel",
+        "rviz",
+        "sllidar",
+        "Smac",
+        "URDF",
+        "XACRO",
+        "XARCO",
         "xlinear",
         "Yahboom",
         "yahboomcar",
         "ylinear"
-    ]
+    ],
+    "ros.distro": "humble"
 }
