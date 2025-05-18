@@ -150,7 +150,7 @@ class yahboomcar_driver(Node):
         self.velPublisher = self.create_publisher(Twist, "vel_raw", 50)
         self.imuPublisher = self.create_publisher(Imu, "/imu/data_raw", 100)
         self.magPublisher = self.create_publisher(MagneticField, "/imu/mag", 100)
-        self.odomPublisher = self.create_publisher(Odometry, "/wheeled/odom", 100)
+        self.odomPublisher = self.create_publisher(Odometry, "/wheel/odometry", 100)
 
         # Create a timer for periodic data publishing
         self.timer = self.create_timer(0.1, self.pub_data)

@@ -3,3 +3,7 @@ repositories:
     type: git
     url: https://github.com/cord-burmeister/x3plus_bot.git
     version: main
+  sllidar_ros2:
+    type: git
+    url: https://github.com/Slamtec/sllidar_ros2.git
+    version: main
