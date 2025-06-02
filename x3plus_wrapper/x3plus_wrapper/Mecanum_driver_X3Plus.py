@@ -483,7 +483,7 @@ def cleanup(self):
 			
 def main():
 	rclpy.init() 
-	driver = yahboomcar_driver('driver_node')
+	driver = yahboomcar_driver('x3plus_wrapper')
 
 	# Register the cleanup method to be called on shutdown
 	rclpy.get_default_context().on_shutdown(driver.cleanup)
