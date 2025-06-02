@@ -177,7 +177,9 @@ def generate_launch_description():
     lidar_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_sllidar_ros2, 'launch', 'sllidar_c1_launch.py')),
-        launch_arguments={'frame_id': 'laser_link'}.items())
+        launch_arguments={'frame_id': 'laser_link',
+                          'serial_port': '/dev/rplidar',
+                          }.items())
 
 
 
