@@ -96,6 +96,7 @@ class yahboomcar_driver(Node):
         # 1000 mm / 251,28 mm * 2464 ticks per round  ==> 9805.794333 ticks per meter
         # The speed of the motor is 205 +-10 RPM (revolutions per minute)
         # So the maximum speed of the car is 205 * 0.25128 m / 60 s = 0.85854 m/s
+        self.ticks_per_round = 2464	# Encoder ticks per round 
         self.ticks_per_meter = 9805.794333	# Encoder ticks per meter 
         
 
@@ -151,6 +152,7 @@ class yahboomcar_driver(Node):
         self.imuPublisher = self.create_publisher(Imu, "/imu/data_raw", 100)
         self.magPublisher = self.create_publisher(MagneticField, "/imu/mag", 100)
         self.odomPublisher = self.create_publisher(Odometry, "/wheel/odometry", 100)
+        self.jointStatePublisher = self.create_publisher(JointState, 'joint_states', 10)
 
         # Create a timer for periodic data publishing
         self.timer = self.create_timer(0.1, self.pub_data)
@@ -225,16 +227,7 @@ class yahboomcar_driver(Node):
         odom = Odometry()
 
         # Populate sensor data
-        state.header.stamp = time_stamp.to_msg()
-        state.header.frame_id = "joint_states"
-        state.name = [
-            self.Prefix + "back_right_joint",
-            self.Prefix + "back_left_joint",
-            self.Prefix + "front_left_steer_joint",
-            self.Prefix + "front_left_wheel_joint",
-            self.Prefix + "front_right_steer_joint",
-            self.Prefix + "front_right_wheel_joint",
-        ]
+      
 
         edition.data = self.car.get_version() * 1.0
         battery.data = self.car.get_battery_voltage() * 1.0
@@ -339,6 +332,22 @@ class yahboomcar_driver(Node):
         odom.twist.twist.linear.y = vy * 1.0
         odom.twist.twist.angular.z = angular * 1.0
 
+        # Calulate joint states
+        state.header.stamp = time_stamp.to_msg()
+        state.header.frame_id = "joint_states"
+        state.name = [
+            self.Prefix + "front_right_joint",
+            self.Prefix + "front_left_joint",
+            self.Prefix + "back_right_joint",
+            self.Prefix + "back_left_joint",
+        ]
+        state.position = [
+            self.front_right_encoder_old / self.ticks_per_round * 2.0 * pi,
+            self.front_left_encoder_old / self.ticks_per_round * 2.0 * pi,
+            self.rear_right_encoder_old / self.ticks_per_round * 2.0 * pi,
+            self.rear_left_encoder_old / self.ticks_per_round * 2.0 * pi,
+        ]
+
         # Publish data
         self.velPublisher.publish(twist)
         self.imuPublisher.publish(imu)
@@ -346,6 +355,7 @@ class yahboomcar_driver(Node):
         self.volPublisher.publish(battery)
         self.EdiPublisher.publish(edition)
         self.odomPublisher.publish(odom)
+        self.jointStatePublisher.publish(state)
 
     def cleanup(self):
         """
