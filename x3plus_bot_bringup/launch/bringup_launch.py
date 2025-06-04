@@ -117,10 +117,10 @@ def generate_launch_description():
         default_value='true',
         description='Use simulation (Gazebo) clock if true')
 
-    # declare_params_file_cmd = DeclareLaunchArgument(
-    #     'params_file',
-    #     default_value=os.path.join(pkg_home, 'config', 'nav2_params-DWBLocalPlanner.yaml'),
-    #     description='Full path to the ROS2 parameters file to use for all launched nodes')
+    declare_params_file_cmd = DeclareLaunchArgument(
+        'params_file',
+        default_value=os.path.join(pkg_nav2, 'config', 'nav2_params-DWBLocalPlanner.yaml'),
+        description='Full path to the ROS2 parameters file to use for all launched nodes')
 
     # declare_params_file_cmd = DeclareLaunchArgument(
     #     'params_file',
@@ -132,10 +132,13 @@ def generate_launch_description():
     #     default_value=os.path.join(pkg_home, 'config', 'nav2_params-SmacStateLattice.yaml'),
     #     description='Full path to the ROS2 parameters file to use for all launched nodes')
 
-    declare_params_file_cmd = DeclareLaunchArgument(
-        'params_file',
-        default_value=os.path.join(pkg_nav2, 'config', 'nav2_params-MPPIController.yaml'),
-        description='Full path to the ROS2 parameters file to use for all launched nodes')
+# decided to try to isolate which part of the launch chain was going belly-up, by launching just the Nav2 stuff with ros2 launch nav2_bringup navigation_launch.py. This appears to start-up nicely but eventually gets
+# [ERROR] [controller_server-1]: process has died [pid 2529, exit code -4, cmd '/opt/ros/jazzy/lib/nav2_controller/controller_server --ros-args --log-level info --ros-args -p use_sim_time:=False --params-file /tmp/launch_params_j3qiyfo_ -r /tf:=tf -r /tf_static:=tf_static -r cmd_vel:=cmd_vel_nav'].
+# https://robotics.stackexchange.com/questions/114131/trouble-getting-nav2-getting-started-example-to-run
+    # declare_params_file_cmd = DeclareLaunchArgument(
+    #     'params_file',
+    #     default_value=os.path.join(pkg_nav2, 'config', 'nav2_params-MPPIController.yaml'),
+    #     description='Full path to the ROS2 parameters file to use for all launched nodes')
 
     declare_autostart_cmd = DeclareLaunchArgument(
         'autostart', default_value='true',
