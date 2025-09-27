@@ -47,3 +47,9 @@ The `drive_bringup_X3Plus_launch.py` file is used to launch the robot's nodes an
 - `joint_state_publisher_gui`: GUI for publishing joint states.
 - `rviz2`: RViz visualization tool.
 - `Mecanum_driver_X3Plus`: Main driver node for the robot.
+
+## Github Pages
+
+The web site of the project can be found under
+
+[Github Pages](https://cord-burmeister.github.io/x3plus_docs/)
