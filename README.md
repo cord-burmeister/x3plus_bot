@@ -1,4 +1,5 @@
 # x3plus_bot
+
 The packages for the hardware of the robot
 
 ## x3plus_wrapper Package
@@ -10,16 +11,19 @@ The `x3plus_wrapper` package maps the driver functionality into the ROS2 world. 
 To install the `x3plus_wrapper` package, follow these steps:
 
 1. Clone the repository:
+
    ```sh
    git clone https://github.com/cord-burmeister/x3plus_bot.git
    ```
 
 2. Navigate to the `x3plus_wrapper` directory:
+
    ```sh
    cd x3plus_bot/x3plus_wrapper
    ```
 
 3. Install the package using `colcon`:
+
    ```sh
    colcon build
    ```
@@ -29,11 +33,13 @@ To install the `x3plus_wrapper` package, follow these steps:
 To use the `x3plus_wrapper` package, follow these steps:
 
 1. Source the workspace:
+
    ```sh
    source install/setup.bash
    ```
 
 2. Run the launch file:
+
    ```sh
    ros2 launch x3plus_wrapper drive_bringup_X3Plus_launch.py
    ```
