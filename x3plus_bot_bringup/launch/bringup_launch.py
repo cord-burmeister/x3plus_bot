@@ -41,7 +41,7 @@ def evaluate_xacro(context, *args, **kwargs):
     """
 
     # Use xacro to process the file
-    xacro_file = os.path.join(get_package_share_directory('x3plus_description'), 'urdf', 'yahboomcar_X3plusX.urdf.xacro')
+    xacro_file = os.path.join(get_package_share_directory('x3plus_description'), 'urdf', 'yahboomcar_X3plus.urdf.xacro')
 
     #robot_description_config = xacro.process_file(xacro_file)
     robot_description_config = xacro.process_file(xacro_file, 

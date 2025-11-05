@@ -40,7 +40,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 # evaluates LaunchConfigurations in context for use with xacro.process_file(). Returns a list of launch actions to be included in launch description
 def evaluate_xacro(context, *args, **kwargs):
     # Use xacro to process the file
-    xacro_file = os.path.join(get_package_share_directory('x3plus_description'), 'urdf', 'yahboomcar_X3plusX.urdf.xacro')
+    xacro_file = os.path.join(get_package_share_directory('x3plus_description'), 'urdf', 'yahboomcar_X3plus.urdf.xacro')
 
     robot_description_config = xacro.process_file(xacro_file, 
             mappings={  
