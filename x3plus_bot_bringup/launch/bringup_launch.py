@@ -176,15 +176,23 @@ def generate_launch_description():
 #endregion
 
 
-    # Declare the launch arguments for the lidar sensor
-    lidar_cmd = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_sllidar_ros2, 'launch', 'sllidar_c1_launch.py')),
-        launch_arguments={'frame_id': 'laser_link',
-                          'serial_port': '/dev/rplidar',
-                          }.items())
-
-
+    # Instead of using IncludeLaunchDescription, directly launch the sllidar_node with remappings:
+    lidar_cmd = Node (
+        package='sllidar_ros2',
+        executable='sllidar_node',
+        name='sllidar_node',
+        output='screen',
+        parameters=[{
+            'channel_type':'serial',
+            'serial_port': '/dev/rplidar',
+            'serial_baudrate': 460800, 
+            'frame_id': 'laser_link',
+            'inverted': False, 
+            'angle_compensate': True, 
+            'scan_mode': 'Standard',
+        }], 
+        remappings=[('scan', 'scan_raw')]
+    )
 
     # Declare the launch arguments for the wrapper node
     wrapper_cmd= Node(
