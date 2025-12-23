@@ -87,6 +87,7 @@ def generate_launch_description():
 #region  Launch configuration variables specific to simulation
     rviz_config_file = LaunchConfiguration('rviz_config_file')
     use_rviz = LaunchConfiguration('use_rviz')
+    use_nav2 = LaunchConfiguration('use_nav2')    
 #endregion 
 
 #region  Declare the launch arguments
@@ -114,18 +115,18 @@ def generate_launch_description():
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
-        default_value='true',
+        default_value='false',
         description='Use simulation (Gazebo) clock if true')
-
-    declare_params_file_cmd = DeclareLaunchArgument(
-        'params_file',
-        default_value=os.path.join(pkg_nav2, 'config', 'nav2_params-DWBLocalPlanner.yaml'),
-        description='Full path to the ROS2 parameters file to use for all launched nodes')
 
     # declare_params_file_cmd = DeclareLaunchArgument(
     #     'params_file',
-    #     default_value=os.path.join(pkg_home, 'config', 'nav2_params.yaml'),
+    #     default_value=os.path.join(pkg_nav2, 'config', 'nav2_params-DWBLocalPlanner.yaml'),
     #     description='Full path to the ROS2 parameters file to use for all launched nodes')
+
+    declare_params_file_cmd = DeclareLaunchArgument(
+        'params_file',
+        default_value=os.path.join(pkg_nav2, 'config', 'nav2_params.yaml'),
+        description='Full path to the ROS2 parameters file to use for all launched nodes')
 
     # declare_params_file_cmd = DeclareLaunchArgument(
     #     'params_file',
@@ -172,6 +173,10 @@ def generate_launch_description():
         default_value=os.path.join(pkg_nav2, 'maps', 'map.yaml'),
         description='Full path to the ROS2 map file to use for navigation')
 
+    declare_use_nav2_cmd = DeclareLaunchArgument(
+        'use_nav2',
+        default_value='False',
+        description='Whether to start the x3plus logic')
 
 #endregion
 
@@ -218,6 +223,7 @@ def generate_launch_description():
                           'params_file': params_file,
                           'autostart': autostart,
                           'use_composition': use_composition,
+                          'use_nav2': use_nav2,
                           'use_respawn': use_respawn}.items())
 
     # Create the launch description and populate
@@ -238,6 +244,7 @@ def generate_launch_description():
     ld.add_action(declare_use_robot_state_pub_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_map_cmd)
+    ld.add_action(declare_use_nav2_cmd)
 
     # ld.add_action(declare_robot_name_cmd)
     # ld.add_action(declare_robot_sdf_cmd)
