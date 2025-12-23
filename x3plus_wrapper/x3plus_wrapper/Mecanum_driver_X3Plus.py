@@ -251,6 +251,23 @@ class yahboomcar_driver(Node):
         imu.angular_velocity.y = gy * 1.0
         imu.angular_velocity.z = gz * 1.0
 
+        # orientation quaternion already set here… 
+        imu.orientation_covariance = [ 
+            99999.0, 0.0, 0.0, 
+            0.0, 99999.0, 0.0, 
+            0.0, 0.0, 0.05 # yaw 
+        ] 
+        imu.angular_velocity_covariance = [ 
+            99999.0, 0.0, 0.0, 
+            0.0, 99999.0, 0.0, 
+            0.0, 0.0, 0.02 # yaw rate 
+        ] 
+        imu.linear_acceleration_covariance = [ 
+               0.5, 0.0, 0.0, 
+               0.0, 0.5, 0.0, 
+               0.0, 0.0, 0.5 
+        ]
+
         # Populate magnetic field data
         mag.header.stamp = time_stamp.to_msg()
         mag.header.frame_id = self.imu_link
@@ -327,10 +344,39 @@ class yahboomcar_driver(Node):
         odom.pose.pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
 
         #  set the velocity
-        odom.child_frame_id = "base_link";
+        odom.child_frame_id = "base_footprint";
         odom.twist.twist.linear.x =  vx * 1.0
         odom.twist.twist.linear.y = vy * 1.0
         odom.twist.twist.angular.z = angular * 1.0
+
+        # When you publish an nav_msgs/Odometry message without a covariance, ROS 2 fills the covariance with all zeros. 
+        # And for robot_localization, a zero covariance means:
+        # “This measurement is perfectly certain.”
+        # The EKF treats that as invalid and rejects the message.
+        # If all your inputs have zero covariances, the filter never initializes and therefore never publishes.
+        
+        # For an omnidirectional base, you can usually assume similar uncertainty in x and y, and treat z/roll/pitch as “don’t care” with huge covariances.
+        odom.pose.covariance = [
+            0.02, 0.0,    0.0,     0.0,     0.0,     0.0,
+            0.0,    0.02, 0.0,     0.0,     0.0,     0.0,
+            0.0,    0.0,    99999.0, 0.0,     0.0,     0.0,
+            0.0,    0.0,    0.0,     99999.0, 0.0,     0.0,
+            0.0,    0.0,    0.0,     0.0,     99999.0, 0.0,
+            0.0,    0.0,    0.0,     0.0,     0.0,     0.05
+        ]
+
+        # Twist covariance for odom
+        # For an omni robot, both vx and vy velocities more than integrated pose:
+        
+        odom.twist.covariance = [
+            0.01, 0.0,    0.0,     0.0,     0.0,     0.0,
+            0.0,    0.01, 0.0,     0.0,     0.0,     0.0,
+            0.0,    0.0,    99999.0, 0.0,     0.0,     0.0,
+            0.0,    0.0,    0.0,     99999.0, 0.0,     0.0,
+            0.0,    0.0,    0.0,     0.0,     99999.0, 0.0,
+            0.0,    0.0,    0.0,     0.0,     0.0,     0.02
+        ]
+
 
         # Calulate joint states
         state.header.stamp = time_stamp.to_msg()
