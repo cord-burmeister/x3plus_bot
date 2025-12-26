@@ -1,0 +1,41 @@
+mecanum_driver:
+  ros__parameters:
+
+    # --- Wheel geometry ---
+    wheel_radius: 0.040          # meters
+    wheel_separation_width: 0.208   # distance between left/right wheels (meters)
+    wheel_separation_length: 0.22  # distance between front/rear wheels (meters)
+
+    # --- Encoder configuration including the gear box---
+    ticks_per_revolution: 2464
+
+    # # --- Wheel direction multipliers ---
+    # front_left_wheel_multiplier: 1.0
+    # front_right_wheel_multiplier: -1.0
+    # rear_left_wheel_multiplier: 1.0
+    # rear_right_wheel_multiplier: -1.0
+
+    # --- Per‑wheel calibration multipliers ---
+    front_left_scale: 1.0
+    front_right_scale: 1.0
+    rear_left_scale: 1.0
+    rear_right_scale: 1.0
+
+    # --- Slip compensation (optional) ---
+    slip_x: 1.0
+    slip_y: 1.0
+    slip_yaw: 1.0
+
+    # # --- IMU fusion (optional) ---
+    # use_imu: true
+    # imu_yaw_weight: 0.7
+    # odom_yaw_weight: 0.3
+
+    # # --- Frames ---
+    # base_frame_id: "base_link"
+    # odom_frame_id: "odom"
+    # publish_tf: true
+
+    # # --- Update rates ---
+    # odom_publish_rate: 50.0   # Hz
+    # tf_publish_rate: 50.0     # Hz

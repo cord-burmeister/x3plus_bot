@@ -98,11 +98,6 @@ class yahboomcar_driver(Node):
         self.wheel_separation_length = 0.22  
 		# Distance between left and right wheels (in meters)
         self.wheel_separation_width = 0.208  
-        #  Roller geometry 
-        self.roller_angle = 45.0 * (pi / 180.0)  # in radians
-        # Encoder configuration  
-        self.ticks_per_revolution: 4096 
-        self.gear_ratio: 1.0
 
         # conversion factor from meter to ticks 
         # MD520  1:56 has Encoder counts per output shaft turn 360 
@@ -111,8 +106,13 @@ class yahboomcar_driver(Node):
         # 1000 mm / 251,28 mm * 2464 ticks per round  ==> 9805.794333 ticks per meter
         # The speed of the motor is 205 +-10 RPM (revolutions per minute)
         # So the maximum speed of the car is 205 * 0.25128 m / 60 s = 0.85854 m/s
-        self.ticks_per_round = 2464	# Encoder ticks per round 
-        self.ticks_per_meter = 9805.794333	# Encoder ticks per meter 
+        self.ticks_per_revolution = 2464	# Encoder ticks per round 
+
+        # --- Per‑wheel calibration multipliers ---
+        self.front_left_scale = 1.0
+        self.front_right_scale = 1.0
+        self.rear_left_scale = 1.0
+        self.rear_right_scale = 1.0
         
         # remember the position for the odometry calculation
         self.x = 0.0
@@ -125,7 +125,7 @@ class yahboomcar_driver(Node):
         self.car.set_car_type(2)  # Set car type to X3Plus
 
         # React to dynamic parameter changes (parameter callback)
-        self.add_on_set_parameters_callback(on_param_change)
+        self.add_on_set_parameters_callback(self.on_param_change)
 
         # Declare and retrieve ROS2 parameters
         self.declare_parameter('car_type', 'X3Plus')
@@ -156,10 +156,39 @@ class yahboomcar_driver(Node):
         self.angular_limit = self.get_parameter('angular_limit').get_parameter_value().double_value
         print(self.angular_limit)
 
-        self.declare_parameter('wheel_radius', wheel_separation_length)
+        self.declare_parameter('wheel_radius', self.wheel_radius)
         self.wheel_radius = self.get_parameter('wheel_radius').get_parameter_value().double_value
         print(self.wheel_radius)    
 
+        self.declare_parameter('wheel_separation_length', self.wheel_separation_length)
+        self.wheel_separation_length = self.get_parameter('wheel_separation_length').get_parameter_value().double_value
+        print(self.wheel_separation_length)    
+    
+        self.declare_parameter('wheel_separation_width', self.wheel_separation_width)
+        self.wheel_radius = self.get_parameter('wheel_separation_width').get_parameter_value().double_value
+        print(self.wheel_separation_width)    
+
+        self.declare_parameter('ticks_per_revolution', self.ticks_per_revolution)
+        self.ticks_per_revolution = self.get_parameter('ticks_per_revolution').get_parameter_value().double_value
+        print(self.ticks_per_revolution)    
+
+        self.declare_parameter('front_left_scale', self.front_left_scale)
+        self.front_left_scale = self.get_parameter('front_left_scale').get_parameter_value().double_value
+        print(self.front_left_scale)    
+
+        self.declare_parameter('front_right_scale', self.front_right_scale)
+        self.front_right_scale = self.get_parameter('front_right_scale').get_parameter_value().double_value
+        print(self.front_right_scale)    
+
+        self.declare_parameter('rear_left_scale', self.rear_left_scale)
+        self.rear_left_scale = self.get_parameter('rear_left_scale').get_parameter_value().double_value
+        print(self.rear_left_scale)    
+
+        self.declare_parameter('rear_right_scale', self.rear_right_scale)
+        self.rear_right_scale = self.get_parameter('rear_right_scale').get_parameter_value().double_value
+        print(self.rear_right_scale)    
+
+    
         # Create subscribers
         self.sub_cmd_vel = self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
         self.sub_BUzzer = self.create_subscription(Bool, "Buzzer", self.Buzzercallback, 100)
@@ -180,6 +209,14 @@ class yahboomcar_driver(Node):
         self.edition = Float32()
         self.edition.data = 1.0
         self.car.create_receive_threading()
+
+    def compute_ticks_per_meter(self) -> float:
+        # conversion factor from meter to ticks 
+        # MD520  1:56 has Encoder counts per output shaft turn 360 
+        # Wheel is 80 mm diameter.
+        # circumference is then 2 * PI * Radius ==> 251,28 mm per turn
+        # 1000 mm / 251,28 mm * 2464 ticks per round  ==> 9805.794333 ticks per meter
+        return  1.0 / (2.0 * pi * self.wheel_radius) * self.ticks_per_revolution
 
     def cmd_vel_callback(self, msg):
         """
@@ -324,10 +361,11 @@ class yahboomcar_driver(Node):
         dt = (time_stamp - self.last_time_stamp).nanoseconds / 1e9  # Convert to seconds
         self.last_time_stamp = time_stamp
         # calculate the distance traveled by each wheel
-        dfl = (front_left_encoder - self.front_left_encoder_old) / self.ticks_per_meter;
-        dfr = (front_right_encoder - self.front_right_encoder_old) / self.ticks_per_meter;
-        drl = (rear_left_encoder - self.rear_left_encoder_old) / self.ticks_per_meter;
-        drr = (rear_right_encoder - self.rear_right_encoder_old) / self.ticks_per_meter;
+        dfl = (front_left_encoder - self.front_left_encoder_old) / self.compute_ticks_per_meter() * self.front_left_scale
+        dfr = (front_right_encoder - self.front_right_encoder_old) / self.compute_ticks_per_meter() * self.front_right_scale
+        drl = (rear_left_encoder - self.rear_left_encoder_old) / self.compute_ticks_per_meter() * self.rear_left_scale
+        drr = (rear_right_encoder - self.rear_right_encoder_old) / self.compute_ticks_per_meter() * self.rear_right_scale
+
 
         # calculate the average distance traveled by the robot
         dx = (dfl + dfr + drl + drr) / 4.0  # Average distance traveled by all wheels in the x direction
@@ -407,10 +445,10 @@ class yahboomcar_driver(Node):
             self.Prefix + "back_left_joint",
         ]
         state.position = [
-            self.front_right_encoder_old / self.ticks_per_round * 2.0 * pi,
-            self.front_left_encoder_old / self.ticks_per_round * 2.0 * pi,
-            self.rear_right_encoder_old / self.ticks_per_round * 2.0 * pi,
-            self.rear_left_encoder_old / self.ticks_per_round * 2.0 * pi,
+            self.front_right_encoder_old / self.ticks_per_revolution * 2.0 * pi,
+            self.front_left_encoder_old / self.ticks_per_revolution * 2.0 * pi,
+            self.rear_right_encoder_old / self.ticks_per_revolution * 2.0 * pi,
+            self.rear_left_encoder_old / self.ticks_per_revolution * 2.0 * pi,
         ]
 
         # Publish data
@@ -438,7 +476,41 @@ class yahboomcar_driver(Node):
         rclpy.loginfo("Close the robot...")
         rclpy.sleep(1)
 
+    def on_param_change(self, params):
+        for p in params:
+            if p.name == "front_left_scale":
+                self.front_left_scale = p.value
+                self.get_logger().info(f"Updated front_left_scale → {p.value}")
 
+            elif p.name == "front_right_scale":
+                self.front_right_scale = p.value
+                self.get_logger().info(f"Updated front_right_scale → {p.value}")
+
+            elif p.name == "rear_left_scale":
+                self.rear_left_scale = p.value
+                self.get_logger().info(f"Updated rear_left_scale → {p.value}")
+
+            elif p.name == "rear_right_scale":
+                self.rear_right_scale = p.value
+                self.get_logger().info(f"Updated rear_right_scale → {p.value}")
+
+            elif p.name == "wheel_radius":
+                self.wheel_radius = p.value
+                self.get_logger().info(f"Updated wheel_radius → {p.value}")
+                
+            elif p.name == "wheel_separation_width":
+                self.wheel_separation_width = p.value
+                self.get_logger().info(f"Updated wheel_separation_width → {p.value}")
+                
+            elif p.name == "wheel_separation_length":
+                self.wheel_separation_length = p.value
+                self.get_logger().info(f"Updated wheel_separation_length → {p.value}")
+                
+            elif p.name == "ticks_per_revolution":
+                self.ticks_per_revolution = p.value
+                self.get_logger().info(f"Updated ticks_per_revolution → {p.value}")                
+
+        return SetParametersResult(successful=True)
 
 
 def main():
@@ -452,11 +524,7 @@ def main():
     rclpy.get_default_context().on_shutdown(driver.cleanup)
     rclpy.spin(driver)
 
-def on_param_change(params):
-    for p in params:
-        if p.name == "speed":
-            self.get_logger().info(f"Speed changed to {p.value}")
-    return SetParametersResult(successful=True)
+
 
 
 	#callback function

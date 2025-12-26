@@ -64,6 +64,7 @@ def generate_launch_description():
     default_model_path = urdf_tutorial_path / 'urdf/yahboomcar_X3.urdf'
     wrapper_path = get_package_share_path('x3plus_wrapper')
     default_rviz_config_path = wrapper_path / 'rviz/drive_xplus.rviz'
+    default_calibration_config_path = wrapper_path / 'config/calibration.yaml'
 
     gui_arg = DeclareLaunchArgument(name='gui', default_value='false', choices=['true', 'false'],
                                     description='Flag to enable joint_state_publisher_gui')
@@ -98,6 +99,9 @@ def generate_launch_description():
     driver_node = Node(
         package='x3plus_wrapper',
         executable='Mecanum_driver_X3Plus',
+        name='mecanum_driver', 
+        output='screen', 
+        parameters=[default_calibration_config_path],
     )
 
     return LaunchDescription([
