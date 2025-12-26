@@ -42,6 +42,8 @@ from rclpy.clock import Clock
 from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler
 
+from rcl_interfaces.msg import SetParametersResult
+
 # Dictionary mapping car types to their respective IDs
 car_type_dic = {
     'R2': 5,
@@ -89,6 +91,19 @@ class yahboomcar_driver(Node):
         self.rear_left_encoder_old = 0.0;	
         self.last_time_stamp = Clock().now()
 
+
+		# Radius wheels (in meters)
+        self.wheel_radius: 0.040          # meters
+		# Distance between front and rear wheels (in meters)
+        self.wheel_separation_length = 0.22  
+		# Distance between left and right wheels (in meters)
+        self.wheel_separation_width = 0.208  
+        #  Roller geometry 
+        self.roller_angle = 45.0 * (pi / 180.0)  # in radians
+        # Encoder configuration  
+        self.ticks_per_revolution: 4096 
+        self.gear_ratio: 1.0
+
         # conversion factor from meter to ticks 
         # MD520  1:56 has Encoder counts per output shaft turn 360 
         # Wheel is 80 mm diameter.
@@ -99,22 +114,18 @@ class yahboomcar_driver(Node):
         self.ticks_per_round = 2464	# Encoder ticks per round 
         self.ticks_per_meter = 9805.794333	# Encoder ticks per meter 
         
-
-		# Distance between front and rear wheels (in meters)
-        self.distance_between_front_rear_wheels = 0.22  
-		# Distance between left and right wheels (in meters)
-        self.distance_between_left_right_wheels = 0.208  
-
         # remember the position for the odometry calculation
         self.x = 0.0
         self.y = 0.0    
         self.theta = 0.0
 
-
         # Initialize car control
         self.RA2DE = 180 / pi  # Radians to degrees conversion factor
         self.car = Rosmaster()
         self.car.set_car_type(2)  # Set car type to X3Plus
+
+        # React to dynamic parameter changes (parameter callback)
+        self.add_on_set_parameters_callback(on_param_change)
 
         # Declare and retrieve ROS2 parameters
         self.declare_parameter('car_type', 'X3Plus')
@@ -140,6 +151,14 @@ class yahboomcar_driver(Node):
         self.declare_parameter('angular_limit', 5.0)
         self.angular_limit = self.get_parameter('angular_limit').get_parameter_value().double_value
         print(self.angular_limit)
+
+        self.declare_parameter('angular_limit', 5.0)
+        self.angular_limit = self.get_parameter('angular_limit').get_parameter_value().double_value
+        print(self.angular_limit)
+
+        self.declare_parameter('wheel_radius', wheel_separation_length)
+        self.wheel_radius = self.get_parameter('wheel_radius').get_parameter_value().double_value
+        print(self.wheel_radius)    
 
         # Create subscribers
         self.sub_cmd_vel = self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
@@ -313,7 +332,7 @@ class yahboomcar_driver(Node):
         # calculate the average distance traveled by the robot
         dx = (dfl + dfr + drl + drr) / 4.0  # Average distance traveled by all wheels in the x direction
         dy = (-dfl + dfr + drl - drr) / 4.0  # Average distance traveled in the y direction
-        dtheta = (-dfl + dfr - drl + drr) / (4.0 * (self.distance_between_left_right_wheels + self.distance_between_front_rear_wheels) / 2)  # Average rotation
+        dtheta = (-dfl + dfr - drl + drr) / (4.0 * (self.wheel_separation_width + self.wheel_separation_length) / 2)  # Average rotation
 
         self.x += (dx * np.cos(self.theta) - dy * np.sin(self.theta)) * dt  # Update x position
         self.y += (dx * np.sin(self.theta) + dy * np.cos(self.theta)) * dt  # Update y position
@@ -419,6 +438,9 @@ class yahboomcar_driver(Node):
         rclpy.loginfo("Close the robot...")
         rclpy.sleep(1)
 
+
+
+
 def main():
     """
     Main function to initialize and run the ROS2 node.
@@ -429,7 +451,13 @@ def main():
     # Register the cleanup method to be called on shutdown
     rclpy.get_default_context().on_shutdown(driver.cleanup)
     rclpy.spin(driver)
- 
+
+def on_param_change(params):
+    for p in params:
+        if p.name == "speed":
+            self.get_logger().info(f"Speed changed to {p.value}")
+    return SetParametersResult(successful=True)
+
 
 	#callback function
 def cmd_vel_callback(self,msg):
