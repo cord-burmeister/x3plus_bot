@@ -164,7 +164,7 @@ class yahboomcar_driver(Node):
         print(self.wheel_separation_length)    
     
         self.declare_parameter('wheel_separation_width', self.wheel_separation_width)
-        self.wheel_radius = self.get_parameter('wheel_separation_width').get_parameter_value().double_value
+        self.wheel_separation_width = self.get_parameter('wheel_separation_width').get_parameter_value().double_value
         print(self.wheel_separation_width)    
 
         self.declare_parameter('ticks_per_revolution', self.ticks_per_revolution)
@@ -190,7 +190,7 @@ class yahboomcar_driver(Node):
     
         # Create subscribers
         self.sub_cmd_vel = self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
-        self.sub_BUzzer = self.create_subscription(Bool, "Buzzer", self.Buzzercallback, 100)
+        self.sub_Buzzer = self.create_subscription(Bool, "Buzzer", self.Buzzercallback, 100) 
 
         # Create publishers
         self.EdiPublisher = self.create_publisher(Float32, "edition", 100)
@@ -265,11 +265,12 @@ class yahboomcar_driver(Node):
             for i in range(3):
                 self.car.set_beep(0)
 
+    @staticmethod
     def update_position(x, y, theta, Vx, Vy, omega, dt):
-       x_new = x + (Vx * np.cos(theta) - Vy * np.sin(theta)) * dt
-       y_new = y + (Vx * np.sin(theta) + Vy * np.cos(theta)) * dt
-       theta_new = theta + omega * dt
-       return x_new, y_new, theta_new
+        x_new = x + (Vx * np.cos(theta) - Vy * np.sin(theta)) * dt
+        y_new = y + (Vx * np.sin(theta) + Vy * np.cos(theta)) * dt
+        theta_new = theta + omega * dt
+        return x_new, y_new, theta_new
 
     def pub_data(self):
         """
@@ -361,25 +362,43 @@ class yahboomcar_driver(Node):
         # See https://research.ijcaonline.org/volume113/number3/pxc3901586.pdf for the odometry calculation
         # calculate the delta time
         dt = (time_stamp - self.last_time_stamp).nanoseconds / 1e9  # Convert to seconds
+        if dt <= 0.0:
+            # nothing to integrate; update timestamp and encoder baselines and skip
+            self.get_logger().warning(f"Non-positive dt in odometry: {dt}. Skipping update.")
+            self.last_time_stamp = time_stamp
+            self.front_left_encoder_old = front_left_encoder
+            self.front_right_encoder_old = front_right_encoder
+            self.rear_left_encoder_old = rear_left_encoder
+            self.rear_right_encoder_old = rear_right_encoder
+            return
         self.last_time_stamp = time_stamp
-        # calculate the distance traveled by each wheel
+
+        # calculate the distance traveled by each wheel (meters)
         dfl = (front_left_encoder - self.front_left_encoder_old) / self.compute_ticks_per_meter() * self.front_left_scale
         dfr = (front_right_encoder - self.front_right_encoder_old) / self.compute_ticks_per_meter() * self.front_right_scale
         drl = (rear_left_encoder - self.rear_left_encoder_old) / self.compute_ticks_per_meter() * self.rear_left_scale
         drr = (rear_right_encoder - self.rear_right_encoder_old) / self.compute_ticks_per_meter() * self.rear_right_scale
 
+        # calculate the average distance traveled by the robot (meters)
+        dx = (dfl + dfr + drl + drr) / 4.0
+        dy = (-dfl + dfr + drl - drr) / 4.0
+        dtheta = (-dfl + dfr - drl + drr) / (2.0 * (self.wheel_separation_width + self.wheel_separation_length) )
 
-        # calculate the average distance traveled by the robot
-        dx = (dfl + dfr + drl + drr) / 4.0  # Average distance traveled by all wheels in the x direction
-        dy = (-dfl + dfr + drl - drr) / 4.0  # Average distance traveled in the y direction
-        dtheta = (-dfl + dfr - drl + drr) / (4.0 * (self.wheel_separation_width + self.wheel_separation_length) / 2)  # Average rotation
+        # log for debugging
+        self.get_logger().debug(f"odom dt={dt:.6f} dfl={dfl:.6f} dfr={dfr:.6f} drl={drl:.6f} drr={drr:.6f} dx={dx:.6f} dy={dy:.6f} dtheta={dtheta:.6f}")
 
-        self.x += (dx * np.cos(self.theta) - dy * np.sin(self.theta)) * dt  # Update x position
-        self.y += (dx * np.sin(self.theta) + dy * np.cos(self.theta)) * dt  # Update y position
-        self.theta += dtheta  # Update orientation
+        # update pose (dx/dy are distances for the interval; do NOT multiply by dt)
+        self.x += (dx * np.cos(self.theta) - dy * np.sin(self.theta))
+        self.y += (dx * np.sin(self.theta) + dy * np.cos(self.theta))
+        self.theta += dtheta
         self.theta = (self.theta + np.pi) % (2 * np.pi) - np.pi  # Normalize theta to [-pi, pi]
 
-        
+        # compute velocities for odometry (m/s, rad/s)
+        vx_odom = dx / dt
+        vy_odom = dy / dt
+        vth_odom = dtheta / dt
+        self.get_logger().debug(f"odom vx={vx_odom:.6f} vy={vy_odom:.6f} vth={vth_odom:.6f}")
+
         # remember the old encoder values
         self.front_left_encoder_old = front_left_encoder
         self.front_right_encoder_old = front_right_encoder
@@ -403,10 +422,10 @@ class yahboomcar_driver(Node):
         odom.pose.pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
 
         #  set the velocity
-        odom.child_frame_id = "base_footprint";
-        odom.twist.twist.linear.x =  vx * 1.0
-        odom.twist.twist.linear.y = vy * 1.0
-        odom.twist.twist.angular.z = angular * 1.0
+        odom.child_frame_id = "base_footprint"
+        odom.twist.twist.linear.x =  vx_odom
+        odom.twist.twist.linear.y = vy_odom
+        odom.twist.twist.angular.z = vth_odom
 
         # When you publish an nav_msgs/Odometry message without a covariance, ROS 2 fills the covariance with all zeros. 
         # And for robot_localization, a zero covariance means:
