@@ -93,11 +93,13 @@ class yahboomcar_driver(Node):
 
 
 		# Radius wheels (in meters)
-        self.wheel_radius: 0.040          # meters
+        self.wheel_radius= 0.040          # meters
 		# Distance between front and rear wheels (in meters)
-        self.wheel_separation_length = 0.22  
+        # self.wheel_separation_length = 0.22  # Based on spec
+        self.wheel_separation_length = 0.22 # Measured 
 		# Distance between left and right wheels (in meters)
-        self.wheel_separation_width = 0.208  
+        # self.wheel_separation_width = 0.208  # Based on spec
+        self.wheel_separation_width = 0.215 # Measured  
 
         # conversion factor from meter to ticks 
         # MD520  1:56 has Encoder counts per output shaft turn 360 
@@ -106,7 +108,8 @@ class yahboomcar_driver(Node):
         # 1000 mm / 251,28 mm * 2464 ticks per round  ==> 9805.794333 ticks per meter
         # The speed of the motor is 205 +-10 RPM (revolutions per minute)
         # So the maximum speed of the car is 205 * 0.25128 m / 60 s = 0.85854 m/s
-        self.ticks_per_revolution = 2464	# Encoder ticks per round 
+        # self.ticks_per_revolution = 2464.0	# Encoder ticks per round based on spec
+        self.ticks_per_revolution = 2444.0	# Measured Encoder ticks per round 
 
         # --- Per‑wheel calibration multipliers ---
         self.front_left_scale = 1.0
@@ -147,10 +150,6 @@ class yahboomcar_driver(Node):
         self.declare_parameter('ylinear_limit', 1.0)
         self.ylinear_limit = self.get_parameter('ylinear_limit').get_parameter_value().double_value
         print(self.ylinear_limit)
-
-        self.declare_parameter('angular_limit', 5.0)
-        self.angular_limit = self.get_parameter('angular_limit').get_parameter_value().double_value
-        print(self.angular_limit)
 
         self.declare_parameter('angular_limit', 5.0)
         self.angular_limit = self.get_parameter('angular_limit').get_parameter_value().double_value
@@ -216,6 +215,9 @@ class yahboomcar_driver(Node):
         # Wheel is 80 mm diameter.
         # circumference is then 2 * PI * Radius ==> 251,28 mm per turn
         # 1000 mm / 251,28 mm * 2464 ticks per round  ==> 9805.794333 ticks per meter
+        #print ("compute_ticks_per_meter")
+        #print (self.wheel_radius)
+        #print (self.ticks_per_revolution)
         return  1.0 / (2.0 * pi * self.wheel_radius) * self.ticks_per_revolution
 
     def cmd_vel_callback(self, msg):

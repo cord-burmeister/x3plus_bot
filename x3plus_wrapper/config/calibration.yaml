@@ -3,11 +3,14 @@ mecanum_driver:
 
     # --- Wheel geometry ---
     wheel_radius: 0.040          # meters
-    wheel_separation_width: 0.208   # distance between left/right wheels (meters)
+    # wheel_separation_width: 0.208   # distance between left/right wheels (meters) based on spec
+    wheel_separation_width: 0.215 # Measured 
     wheel_separation_length: 0.22  # distance between front/rear wheels (meters)
 
     # --- Encoder configuration including the gear box---
-    ticks_per_revolution: 2464
+    # Do it as float !!
+    # ticks_per_revolution: 2464.0 # Based on spec
+    ticks_per_revolution = 2444.0	# Measured Encoder ticks per round 
 
     # # --- Wheel direction multipliers ---
     # front_left_wheel_multiplier: 1.0
