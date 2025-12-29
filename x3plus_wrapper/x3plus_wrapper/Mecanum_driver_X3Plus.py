@@ -37,12 +37,66 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32, Int32, Bool
 from geometry_msgs.msg import Twist, Quaternion
-from sensor_msgs.msg import Imu, MagneticField, JointState
+from sensor_msgs.msg import Imu, MagneticField, JointState, BatteryState
 from rclpy.clock import Clock
 from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler
 
 from rcl_interfaces.msg import SetParametersResult
+
+# Battery SOC calculation constants and functions
+CAPACITY = 5.6  # Ah
+POWER_LOAD = 2.1  # W
+
+# Voltage-SOC curve points (voltage, SOC)
+CURVE_POINTS = [
+    (12.6, 1.0),  # 100% SOC
+    (12.2, 0.8),  # 80% SOC
+    (11.8, 0.5),  # 50% SOC
+    (11.0, 0.2),  # 20% SOC
+    (9.0, 0.0)    # 0% SOC
+]
+
+def calculate_soc_from_curve(voltage: float) -> float:
+    """Calculate SOC using piecewise linear interpolation from the discharge curve."""
+    if voltage >= CURVE_POINTS[0][0]:
+        return 1.0
+    if voltage <= CURVE_POINTS[-1][0]:
+        return 0.0
+    
+    for i in range(len(CURVE_POINTS) - 1):
+        v1, soc1 = CURVE_POINTS[i]
+        v2, soc2 = CURVE_POINTS[i + 1]
+        if v1 >= voltage >= v2:  # Note: voltages are decreasing
+            # Linear interpolation
+            soc = soc1 + (soc2 - soc1) * (voltage - v1) / (v2 - v1)
+            return max(0.0, min(1.0, soc))
+    return 0.0  # Fallback
+
+def calculate_battery_state(voltage: float, current_measured: float = None) -> BatteryState:
+    msg = BatteryState()
+    msg.voltage = voltage
+    msg.capacity = CAPACITY
+    
+    # Calculate SOC using curve
+    soc = calculate_soc_from_curve(voltage)
+    
+    msg.charge = soc * CAPACITY
+    msg.percentage = soc * 100.0
+    
+    # Current
+    if current_measured is not None:
+        msg.current = current_measured
+    else:
+        msg.current = POWER_LOAD / voltage if voltage > 0 else 0.0
+    
+    # Other fields
+    msg.power_supply_status = BatteryState.POWER_SUPPLY_STATUS_DISCHARGING
+    msg.power_supply_health = BatteryState.POWER_SUPPLY_HEALTH_GOOD
+    msg.power_supply_technology = BatteryState.POWER_SUPPLY_TECHNOLOGY_LION
+    msg.present = True
+    
+    return msg
 
 # Dictionary mapping car types to their respective IDs
 car_type_dic = {
@@ -200,6 +254,7 @@ class yahboomcar_driver(Node):
         self.magPublisher = self.create_publisher(MagneticField, "/imu/mag", 100)
         self.odomPublisher = self.create_publisher(Odometry, "/wheel/odometry", 100)
         self.jointStatePublisher = self.create_publisher(JointState, 'joint_states', 10)
+        self.batteryStatePublisher = self.create_publisher(BatteryState, "/battery_state", 100)
 
         # Create a timer for periodic data publishing
         self.timer = self.create_timer(0.1, self.pub_data)
@@ -208,6 +263,7 @@ class yahboomcar_driver(Node):
         self.edition = Float32()
         self.edition.data = 1.0
         self.car.create_receive_threading()
+
 
     def compute_ticks_per_meter(self) -> float:
         # conversion factor from meter to ticks 
@@ -472,6 +528,9 @@ class yahboomcar_driver(Node):
             self.rear_left_encoder_old / self.ticks_per_revolution * 2.0 * pi,
         ]
 
+        battery_state_msg = calculate_battery_state(battery.data)
+        self.batteryStatePublisher.publish(battery_state_msg)
+
         # Publish data
         self.velPublisher.publish(twist)
         self.imuPublisher.publish(imu)
@@ -492,6 +551,8 @@ class yahboomcar_driver(Node):
         self.volPublisher.unregister()
         self.magPublisher.unregister()
         self.odomPublisher.unregister()
+        self.batteryStatePublisher.unregister()
+        self.jointStatePublisher.unregister()
         self.sub_cmd_vel.unregister()
         self.sub_Buzzer.unregister()
         rclpy.loginfo("Close the robot...")
@@ -516,6 +577,7 @@ class yahboomcar_driver(Node):
                 self.get_logger().info(f"Updated rear_right_scale → {p.value}")
 
             elif p.name == "wheel_radius":
+                self.get_logger().info(f"Updating wheel_radius from {self.wheel_radius} to {p.value}")
                 self.wheel_radius = p.value
                 self.get_logger().info(f"Updated wheel_radius → {p.value}")
                 
@@ -636,8 +698,11 @@ def pub_data(self):
 		# rclpy.loginfo("vx: {}, vy: {}, angular: {}".format(twist.linear.x, twist.linear.y, twist.angular.z))
 		self.imuPublisher.publish(imu)
 		self.magPublisher.publish(mag)
+        # Publish battery state           
 		self.volPublisher.publish(battery)
 		self.EdiPublisher.publish(edition)
+		batteryState: BatteryState = calculate_battery_state(battery.data)
+		self.batteryStatePublisher.publish()
 		
 def cleanup(self):
 		self.car.set_car_motion(0, 0, 0)
@@ -653,7 +718,9 @@ def cleanup(self):
         # Always stop the robot when shutting down the node
 		rclpy.loginfo("Close the robot...")
 		rclpy.sleep(1)
-			
+
+
+
 def main():
 	rclpy.init() 
 	driver = yahboomcar_driver('x3plus_wrapper')
