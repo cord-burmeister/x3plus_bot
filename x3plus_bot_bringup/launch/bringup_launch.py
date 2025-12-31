@@ -203,6 +203,8 @@ def generate_launch_description():
     wrapper_cmd= Node(
         package='x3plus_wrapper',
         executable='Mecanum_driver_X3Plus',
+        output='screen',
+        parameters=[os.path.join(pkg_wrapper, 'config', 'wrapper_params.yaml')],
     )
     # # Declare the launch arguments for the wrapper node
     # wrapper_cmd = IncludeLaunchDescription(
