@@ -99,9 +99,10 @@ def generate_launch_description():
     driver_node = Node(
         package='x3plus_wrapper',
         executable='Mecanum_driver_X3Plus',
-        name='mecanum_driver', 
+        name='hardware_wrapper', 
         output='screen', 
-        parameters=[default_calibration_config_path],
+        parameters=[os.path.join(wrapper_path, 'config', 'calibration.yaml')], 
+        # arguments=[ '--ros-args', '--log-level', 'DEBUG' ],
     )
 
     return LaunchDescription([
