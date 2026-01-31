@@ -63,7 +63,7 @@ def calculate_soc_from_curve(voltage: float) -> float:
         return 1.0
     if voltage <= CURVE_POINTS[-1][0]:
         return 0.0
-    
+
     for i in range(len(CURVE_POINTS) - 1):
         v1, soc1 = CURVE_POINTS[i]
         v2, soc2 = CURVE_POINTS[i + 1]
@@ -77,19 +77,19 @@ def calculate_battery_state(voltage: float, current_measured: float = None) -> B
     msg = BatteryState()
     msg.voltage = voltage
     msg.capacity = CAPACITY
-    
+
     # Calculate SOC using curve
     soc = calculate_soc_from_curve(voltage)
-    
+
     msg.charge = soc * CAPACITY
     msg.percentage = soc * 100.0
-    
+
     # Current
     if current_measured is not None:
         msg.current = current_measured
     else:
         msg.current = POWER_LOAD / voltage if voltage > 0 else 0.0
-    
+
     # Other fields
     msg.power_supply_status = BatteryState.POWER_SUPPLY_STATUS_DISCHARGING
     msg.power_supply_health = BatteryState.POWER_SUPPLY_HEALTH_GOOD
@@ -580,18 +580,18 @@ class yahboomcar_driver(Node):
                 self.get_logger().info(f"Updating wheel_radius from {self.wheel_radius} to {p.value}")
                 self.wheel_radius = p.value
                 self.get_logger().info(f"Updated wheel_radius → {p.value}")
-                
+
             elif p.name == "wheel_separation_width":
                 self.wheel_separation_width = p.value
                 self.get_logger().info(f"Updated wheel_separation_width → {p.value}")
-                
+
             elif p.name == "wheel_separation_length":
                 self.wheel_separation_length = p.value
                 self.get_logger().info(f"Updated wheel_separation_length → {p.value}")
-                
+
             elif p.name == "ticks_per_revolution":
                 self.ticks_per_revolution = p.value
-                self.get_logger().info(f"Updated ticks_per_revolution → {p.value}")                
+                self.get_logger().info(f"Updated ticks_per_revolution → {p.value}")
 
         return SetParametersResult(successful=True)
 
@@ -631,7 +631,7 @@ def RGBLightcallback(self,msg):
 		if not isinstance(msg, Int32): return
 		# print ("RGBLight: ", msg.data)
 		for i in range(3): self.car.set_colorful_effect(msg.data, 6, parm=1)
-	
+
 def Buzzercallback(self,msg):
 		if not isinstance(msg, Bool): return
 		if msg.data:
@@ -656,8 +656,8 @@ def pub_data(self):
 		else:
 			state.name = [self.Prefix+"back_right_joint",self.Prefix+ "back_left_joint",self.Prefix+"front_left_steer_joint",self.Prefix+"front_left_wheel_joint",
 							self.Prefix+"front_right_steer_joint", self.Prefix+"front_right_wheel_joint"]
-		
-		#print ("mag: ",self.car.get_magnetometer_data())		
+
+		#print ("mag: ",self.car.get_magnetometer_data())
 		edition.data = self.car.get_version()*1.0
 		battery.data = self.car.get_battery_voltage()*1.0
 		ax, ay, az = self.car.get_accelerometer_data()
@@ -685,11 +685,11 @@ def pub_data(self):
 		mag.magnetic_field.x = mx*1.0
 		mag.magnetic_field.y = my*1.0
 		mag.magnetic_field.z = mz*1.0
-		
+
 		# Publish the current linear vel and angular vel of the car
 		twist.linear.x = vx *1.0
 		twist.linear.y = vy *1.0
-		twist.angular.z = angular*1.0    
+		twist.angular.z = angular*1.0
 		self.velPublisher.publish(twist)
 		# print("ax: %.5f, ay: %.5f, az: %.5f" % (ax, ay, az))
 		# print("gx: %.5f, gy: %.5f, gz: %.5f" % (gx, gy, gz))
@@ -698,12 +698,12 @@ def pub_data(self):
 		# rclpy.loginfo("vx: {}, vy: {}, angular: {}".format(twist.linear.x, twist.linear.y, twist.angular.z))
 		self.imuPublisher.publish(imu)
 		self.magPublisher.publish(mag)
-        # Publish battery state           
+        # Publish battery state
 		self.volPublisher.publish(battery)
 		self.EdiPublisher.publish(edition)
 		batteryState: BatteryState = calculate_battery_state(battery.data)
 		self.batteryStatePublisher.publish()
-		
+
 def cleanup(self):
 		self.car.set_car_motion(0, 0, 0)
 		self.velPublisher.unregister()
@@ -722,7 +722,7 @@ def cleanup(self):
 
 
 def main():
-	rclpy.init() 
+	rclpy.init()
 	driver = yahboomcar_driver('x3plus_wrapper')
 
 	# Register the cleanup method to be called on shutdown
@@ -732,5 +732,3 @@ def main():
 '''if __name__ == '__main__':
 	main()'''
 
-		
-		
