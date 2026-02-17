@@ -66,27 +66,11 @@ def generate_launch_description():
     default_rviz_config_path = wrapper_path / 'rviz/drive_xplus.rviz'
     default_calibration_config_path = wrapper_path / 'config/calibration.yaml'
 
-    gui_arg = DeclareLaunchArgument(name='gui', default_value='false', choices=['true', 'false'],
-                                    description='Flag to enable joint_state_publisher_gui')
-    model_arg = DeclareLaunchArgument(name='model', default_value=str(default_model_path),
-                                      description='Absolute path to robot urdf file')
     rviz_arg = DeclareLaunchArgument(name='rvizconfig', default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
     pub_odom_tf_arg = DeclareLaunchArgument('pub_odom_tf', default_value='false',
                                             description='Whether to publish the tf from the original odom to the base_footprint')
 
-    # Depending on gui parameter, either launch joint_state_publisher or joint_state_publisher_gui
-    joint_state_publisher_node = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        condition=UnlessCondition(LaunchConfiguration('gui'))
-    )
-
-    joint_state_publisher_gui_node = Node(
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        condition=IfCondition(LaunchConfiguration('gui'))
-    )
 
     rviz_node = Node(
         package='rviz2',
@@ -106,12 +90,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        gui_arg,
-        model_arg,
         rviz_arg,
         pub_odom_tf_arg,
-        joint_state_publisher_node,
-        joint_state_publisher_gui_node,
         driver_node,
         OpaqueFunction(function=evaluate_xacro),        
         rviz_node,

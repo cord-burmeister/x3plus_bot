@@ -36,13 +36,15 @@ from Rosmaster_Lib import Rosmaster
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32, Int32, Bool
-from geometry_msgs.msg import Twist, Quaternion
+from geometry_msgs.msg import Twist, Quaternion, Pose
 from sensor_msgs.msg import Imu, MagneticField, JointState, BatteryState
 from rclpy.clock import Clock
 from nav_msgs.msg import Odometry
-from tf_transformations import quaternion_from_euler
+from tf_transformations import quaternion_from_euler, euler_from_quaternion
 
 from rcl_interfaces.msg import SetParametersResult
+from std_srvs.srv import Empty
+from x3plus_interfaces.srv import GetPose, SetPose
 
 # Battery SOC calculation constants and functions
 CAPACITY = 5.6  # Ah
@@ -145,6 +147,8 @@ class yahboomcar_driver(Node):
         self.rear_left_encoder_old = 0.0;	
         self.last_time_stamp = Clock().now()
 
+        self.servo1_angle_old = 90.0
+        self.servo2_angle_old = 90.0
 
 		# Radius wheels (in meters)
         self.wheel_radius= 0.040          # meters
@@ -241,10 +245,30 @@ class yahboomcar_driver(Node):
         self.rear_right_scale = self.get_parameter('rear_right_scale').get_parameter_value().double_value
         print(self.rear_right_scale)    
 
+        # Declare parameters for pose reset
+        self.declare_parameter('reset_x', 0.0)
+        self.declare_parameter('reset_y', 0.0)
+        self.declare_parameter('reset_theta', 0.0)
+        self.declare_parameter('auto_reset_on_startup', False)
+
+        # Apply initial pose reset if auto_reset_on_startup is enabled
+        if self.get_parameter('auto_reset_on_startup').get_parameter_value().bool_value:
+            self.x = self.get_parameter('reset_x').get_parameter_value().double_value
+            self.y = self.get_parameter('reset_y').get_parameter_value().double_value
+            self.theta = self.get_parameter('reset_theta').get_parameter_value().double_value
+            self.get_logger().info(f"Auto-reset pose to x={self.x}, y={self.y}, theta={self.theta}")
+
     
         # Create subscribers
         self.sub_cmd_vel = self.create_subscription(Twist, "cmd_vel", self.cmd_vel_callback, 1)
-        self.sub_Buzzer = self.create_subscription(Bool, "Buzzer", self.Buzzercallback, 100) 
+        self.sub_Buzzer = self.create_subscription(Bool, "Buzzer", self.Buzzercallback, 100)
+        self.sub_pt_yaw_angle = self.create_subscription(Float32, "pt_yaw_angle", self.pt_yaw_angle_callback, 100)
+        self.sub_pt_pitch_angle = self.create_subscription(Float32, "pt_pitch_angle", self.pt_pitch_angle_callback, 100) 
+
+        # Create services for pose management
+        self.srv_get_pose = self.create_service(GetPose, 'get_pose', self.get_pose_callback)
+        self.srv_set_pose = self.create_service(SetPose, 'set_pose', self.set_pose_callback)
+        self.srv_reset_odometry = self.create_service(Empty, 'reset_odometry', self.reset_odometry_callback)
 
         # Create publishers
         self.EdiPublisher = self.create_publisher(Float32, "edition", 100)
@@ -321,6 +345,49 @@ class yahboomcar_driver(Node):
             for i in range(3):
                 self.car.set_beep(0)
 
+    def pt_yaw_angle_callback(self, msg):
+        """
+        Callback for setting the pan-tilt tilt angle (servo1).
+
+        Parameters:
+        -----------
+        - msg (Float32): Tilt angle in degrees.
+        """
+        if not isinstance(msg, Float32):
+            return
+        # Invert the angle to match the expected direction of servo movement (if needed)
+        #             -(self.servo1_angle_old - 90.0) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
+        degree_angle = (msg.data) / pi * 180.0 * 2.0 / 3.0 + 90.0  # Convert from radians to degrees and shift to [0, 180]
+        if (degree_angle < 0.0):
+            degree_angle = 0.0
+        elif (degree_angle > 180.0):
+            degree_angle = 180.0
+        self.servo1_angle_old = degree_angle
+        value = self.servo1_angle_old
+        self.car.set_pwm_servo (1, value)  # Assuming servo1 is in degrees
+
+    def pt_pitch_angle_callback(self, msg):
+        """
+        Callback for setting the pan-tilt pan angle (servo2).
+
+        Parameters:
+        -----------
+        - msg (Float32): Pan angle in degrees.
+        """
+        if not isinstance(msg, Float32):
+            return
+
+        # Invert the angle to match the expected direction of servo movement (if needed)
+        #    (self.servo2_angle_old - 90.0) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
+        degree_angle = (msg.data) / pi * 180.0 + 90.0  # Convert from radians to degrees and shift to [0, 180]
+        if (degree_angle < 0.0):
+            degree_angle = 0.0
+        elif (degree_angle > 180.0):
+            degree_angle = 180.0
+        self.servo2_angle_old = degree_angle
+        value = self.servo2_angle_old
+        self.car.set_pwm_servo (2, value)  # Assuming servo2 is in degrees
+
     @staticmethod
     def update_position(x, y, theta, Vx, Vy, omega, dt):
         x_new = x + (Vx * np.cos(theta) - Vy * np.sin(theta)) * dt
@@ -356,6 +423,7 @@ class yahboomcar_driver(Node):
 		# m4 = rear_right_encoder
         front_left_encoder, rear_left_encoder, front_right_encoder, rear_right_encoder = self.car.get_motor_encoder()
 
+      
         # Populate IMU data
         imu.header.stamp = time_stamp.to_msg()
         imu.header.frame_id = self.imu_link
@@ -520,12 +588,21 @@ class yahboomcar_driver(Node):
             self.Prefix + "front_left_joint",
             self.Prefix + "back_right_joint",
             self.Prefix + "back_left_joint",
+            self.Prefix + "arm_joint1",
+            self.Prefix + "arm_joint2",
         ]
         state.position = [
             self.front_right_encoder_old / self.ticks_per_revolution * 2.0 * pi,
             self.front_left_encoder_old / self.ticks_per_revolution * 2.0 * pi,
             self.rear_right_encoder_old / self.ticks_per_revolution * 2.0 * pi,
             self.rear_left_encoder_old / self.ticks_per_revolution * 2.0 * pi,
+                        # Assuming servo angles are in degrees, convert to radians and apply any necessary scaling
+                        # Servo1 controls arm_joint1 with a 270 range, 
+                        # Values are from 0 - 180 degrees, 
+                        # but we want to map that to 0 - 270 degrees for the joint, so we multiply by 270/180 = 3/2
+                        # servo2 controls arm_joint2b with a full range
+            -(self.servo1_angle_old - 90.0) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
+            (self.servo2_angle_old - 90.0) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
         ]
 
         battery_state_msg = calculate_battery_state(battery.data)
@@ -555,10 +632,85 @@ class yahboomcar_driver(Node):
         self.jointStatePublisher.unregister()
         self.sub_cmd_vel.unregister()
         self.sub_Buzzer.unregister()
+        self.sub_pt_yaw_angle.unregister()
+        self.sub_pt_pitch_angle.unregister()
         rclpy.loginfo("Close the robot...")
         rclpy.sleep(1)
 
+    def get_pose_callback(self, request, response):
+        """
+        Service callback to get the current pose (position and orientation).
+        
+        Parameters:
+        -----------
+        - request: GetPose service request (empty)
+        - response: GetPose service response containing the pose
+        
+        Returns:
+        --------
+        - response: The current pose (x, y, theta as quaternion)
+        """
+        response.pose.position.x = self.x
+        response.pose.position.y = self.y
+        response.pose.position.z = 0.0
+        
+        # Convert theta (yaw) to quaternion
+        quat = quaternion_from_euler(0.0, 0.0, self.theta)
+        response.pose.orientation = Quaternion(x=quat[0], y=quat[1], z=quat[2], w=quat[3])
+        
+        self.get_logger().debug(f"GetPose service called: x={self.x:.4f}, y={self.y:.4f}, theta={self.theta:.4f}")
+        return response
+
+    def set_pose_callback(self, request, response):
+        """
+        Service callback to set the internal pose (position and orientation).
+        This resets the odometry to a specified pose.
+        
+        Parameters:
+        -----------
+        - request: SetPose service request containing the new pose
+        - response: SetPose service response (empty)
+        
+        Returns:
+        --------
+        - response: Empty response confirming the pose was set
+        """
+        self.x = request.pose.position.x
+        self.y = request.pose.position.y
+        
+        # Convert quaternion to euler angles (extract yaw/theta)
+        quat = (request.pose.orientation.x, request.pose.orientation.y, 
+                request.pose.orientation.z, request.pose.orientation.w)
+        roll, pitch, yaw = euler_from_quaternion(quat)
+        self.theta = yaw
+        
+        self.get_logger().info(f"SetPose service called: Set pose to x={self.x:.4f}, y={self.y:.4f}, theta={self.theta:.4f}")
+        return response
+
+    def reset_odometry_callback(self, request, response):
+        """
+        Service callback to reset the odometry to (0, 0, 0).
+        
+        Parameters:
+        -----------
+        - request: Empty request
+        - response: Empty response
+        
+        Returns:
+        --------
+        - response: Empty response confirming the odometry was reset
+        """
+        self.x = 0.0
+        self.y = 0.0
+        self.theta = 0.0
+        self.get_logger().info("Odometry reset to (0, 0, 0)")
+        return response
+
     def on_param_change(self, params):
+        """
+        Callback for dynamic parameter changes.
+        Handles both motion calibration parameters and pose reset parameters.
+        """
         for p in params:
             if p.name == "front_left_scale":
                 self.front_left_scale = p.value
@@ -592,6 +744,18 @@ class yahboomcar_driver(Node):
             elif p.name == "ticks_per_revolution":
                 self.ticks_per_revolution = p.value
                 self.get_logger().info(f"Updated ticks_per_revolution → {p.value}")
+            
+            elif p.name == "reset_x":
+                self.x = p.value
+                self.get_logger().info(f"Reset pose x → {p.value}")
+            
+            elif p.name == "reset_y":
+                self.y = p.value
+                self.get_logger().info(f"Reset pose y → {p.value}")
+            
+            elif p.name == "reset_theta":
+                self.theta = p.value
+                self.get_logger().info(f"Reset pose theta → {p.value}")
 
         return SetParametersResult(successful=True)
 
@@ -648,14 +812,6 @@ def pub_data(self):
 		edition = Float32()
 		mag = MagneticField()
 		state = JointState()
-		state.header.stamp = time_stamp.to_msg()
-		state.header.frame_id = "joint_states"
-		if len(self.Prefix)==0:
-			state.name = ["back_right_joint", "back_left_joint","front_left_steer_joint","front_left_wheel_joint",
-							"front_right_steer_joint", "front_right_wheel_joint"]
-		else:
-			state.name = [self.Prefix+"back_right_joint",self.Prefix+ "back_left_joint",self.Prefix+"front_left_steer_joint",self.Prefix+"front_left_wheel_joint",
-							self.Prefix+"front_right_steer_joint", self.Prefix+"front_right_wheel_joint"]
 
 		#print ("mag: ",self.car.get_magnetometer_data())
 		edition.data = self.car.get_version()*1.0
