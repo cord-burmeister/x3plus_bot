@@ -23,5 +23,6 @@
         "yahboomcar",
         "ylinear"
     ],
-    "ros.distro": "humble"
+    "ros.distro": "humble",
+    "python-envs.pythonProjects": []
 }

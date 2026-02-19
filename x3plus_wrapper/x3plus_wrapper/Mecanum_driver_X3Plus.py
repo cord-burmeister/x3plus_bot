@@ -147,8 +147,11 @@ class yahboomcar_driver(Node):
         self.rear_left_encoder_old = 0.0;	
         self.last_time_stamp = Clock().now()
 
-        self.servo1_angle_old = 90.0
-        self.servo2_angle_old = 90.0
+        self.servo1_angle_origin = 90.0
+        self.servo2_angle_origin = 97.0
+
+        self.servo1_angle_old = self.servo1_angle_origin
+        self.servo2_angle_old = self.servo2_angle_origin
 
 		# Radius wheels (in meters)
         self.wheel_radius= 0.040          # meters
@@ -280,6 +283,11 @@ class yahboomcar_driver(Node):
         self.jointStatePublisher = self.create_publisher(JointState, 'joint_states', 10)
         self.batteryStatePublisher = self.create_publisher(BatteryState, "/battery_state", 100)
 
+
+        # Set initial servo positions to avoid sudden jumps on startup
+        self.pt_yaw_angle_callback (Float32(data=0.0))
+        self.pt_pitch_angle_callback (Float32(data=0.0))
+
         # Create a timer for periodic data publishing
         self.timer = self.create_timer(0.1, self.pub_data)
 
@@ -356,8 +364,8 @@ class yahboomcar_driver(Node):
         if not isinstance(msg, Float32):
             return
         # Invert the angle to match the expected direction of servo movement (if needed)
-        #             -(self.servo1_angle_old - 90.0) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
-        degree_angle = (msg.data) / pi * 180.0 * 2.0 / 3.0 + 90.0  # Convert from radians to degrees and shift to [0, 180]
+        #             -(self.servo1_angle_old - self.servo1_angle_origin) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
+        degree_angle = (msg.data) / pi * 180.0 * 2.0 / 3.0 + self.servo1_angle_origin  # Convert from radians to degrees and shift to [0, 180]
         if (degree_angle < 0.0):
             degree_angle = 0.0
         elif (degree_angle > 180.0):
@@ -378,8 +386,8 @@ class yahboomcar_driver(Node):
             return
 
         # Invert the angle to match the expected direction of servo movement (if needed)
-        #    (self.servo2_angle_old - 90.0) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
-        degree_angle = (msg.data) / pi * 180.0 + 90.0  # Convert from radians to degrees and shift to [0, 180]
+        #    (self.servo2_angle_old - self.servo2_angle_origin) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
+        degree_angle = (msg.data) / pi * 180.0 + self.servo2_angle_origin  # Convert from radians to degrees and shift to [0, 180]
         if (degree_angle < 0.0):
             degree_angle = 0.0
         elif (degree_angle > 180.0):
@@ -601,8 +609,8 @@ class yahboomcar_driver(Node):
                         # Values are from 0 - 180 degrees, 
                         # but we want to map that to 0 - 270 degrees for the joint, so we multiply by 270/180 = 3/2
                         # servo2 controls arm_joint2b with a full range
-            -(self.servo1_angle_old - 90.0) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
-            (self.servo2_angle_old - 90.0) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
+            -(self.servo1_angle_old - self.servo1_angle_origin) * pi / 180.0 * 3 / 2,  # Assuming servo1 is in degrees, convert to radians
+            (self.servo2_angle_old - self.servo2_angle_origin) * pi / 180.0,  # Assuming servo2 is in degrees, convert to radians
         ]
 
         battery_state_msg = calculate_battery_state(battery.data)
