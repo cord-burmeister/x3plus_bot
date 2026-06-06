@@ -26,10 +26,10 @@ def generate_launch_description():
 
 
                 # Point cloud
-                {'pointcloud.enable': False},  # We disable the pointcloud generation in the wrapper
+                {'pointcloud.enable': True},  # We disable the pointcloud generation in the wrapper
                 # because we generate it ourselves in a separate node.
-                # {'pointcloud.stream_filter': 2},          # 2 = color stream
-                # {'pointcloud.stream_format_filter': 5},   # 5 = RGB8
+                {'pointcloud.stream_filter': 2},          # 2 = color stream
+                {'pointcloud.stream_format_filter': 5},   # 5 = RGB8
 
                 # Optional tuning
                 {'depth_module.profile': '640x480x30'},
