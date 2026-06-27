@@ -127,7 +127,7 @@ def generate_launch_description():
                 description="Use case for the robot: drive, slam, explore, explore-lite, explore-roadmap, explore-frontier.",
             ),
             DeclareLaunchArgument(
-                "slam", default_value="False", description="Whether run a SLAM"
+                "slam", default_value="True", description="Whether run a SLAM"
             ),
             DeclareLaunchArgument(
                 "use_sim_time",
@@ -226,7 +226,7 @@ def generate_launch_description():
                 "robot_name": LaunchConfiguration("robot_name", default="x3plus_bot"),
                 "mode": LaunchConfiguration("mode"),
                 "use_case": LaunchConfiguration("use_case"),
-                "visualize": LaunchConfiguration("visualize"),
+                # "visualize": LaunchConfiguration("visualize"),
                 "use_nav2": LaunchConfiguration("use_nav2"),
                 "map": LaunchConfiguration("map"),
                 "params_file": LaunchConfiguration("params_file"),
